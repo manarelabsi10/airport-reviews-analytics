@@ -1,15 +1,30 @@
-Welcome to your new dbt project!
+# Airport Reviews dbt Project
 
-### Using the starter project
+A dbt project that cleans a dataset of airport reviews (~44k rows) and turns it into a summary table per airport. Built on Snowflake.
 
-Try running the following commands:
-- dbt run
-- dbt test
+## What it does
 
+1. **Source**: raw airport reviews loaded into Snowflake (`raw_data.AIRPORT_REVIEW`).
+2. **Staging** (`stg_AIRPORT_REVIEW`): cleans the raw data.
+   - removes quotation marks from review titles
+   - converts the review date from text to a real date
+   - removes leading symbols and extra spaces from the review content
+   - converts `N/A` values to `NULL`
+   - converts rating columns from text to integers
+   - removes duplicate rows
+3. **Mart** (`summery_review_airport`): one row per airport (927 airports) with the number of reviews and the average ratings (queuing, cleanliness, food, wifi, staff).
 
-### Resources:
-- Learn more about dbt [in the docs](https://docs.getdbt.com/docs/introduction)
-- Check out [Discourse](https://discourse.getdbt.com/) for commonly asked questions and answers
-- Join the [chat](https://community.getdbt.com/) on Slack for live discussions and support
-- Find [dbt events](https://events.getdbt.com) near you
-- Check out [the blog](https://blog.getdbt.com/) for the latest news on dbt's development and best practices
+## Lineage
+
+![Lineage graph](lineage.png)
+
+## Tools
+
+- dbt
+- Snowflake
+
+## How to run
+
+```
+dbt run
+```
