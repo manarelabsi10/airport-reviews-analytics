@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: raw_data
+    database: AIRPORT_DB
+    schema: RAW 
+    tables:
+      - name: AIRPORT_REVIEW
+        description: "A table containing information about airports."
