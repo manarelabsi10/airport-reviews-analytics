@@ -10,8 +10,14 @@ with data_cleaned as (
                 || ' ' || split_part(DATE, ' ', 3), 'DD MMMM YYYY' ) as REVIEW_DATE,
 
 
-        -- clean content column from symbols from the start, then remove extra spaces and rename it to REVIEW_CONTENT
-        trim(ltrim(regexp_replace(CONTENT, '\\s+', ' ') , '❎❌✅ ' )) as REVIEW_CONTENT,
+        -- normalize whitespace, remove leading symbols and verification prefixes
+        trim(
+            regexp_replace(
+                ltrim(regexp_replace(CONTENT, '\\s+', ' '), '❎❌✅ '),
+                '^(Trip Verified|Not Verified)\\s*\\|\\s*',
+                '', 1, 1, 'i'
+            )
+        ) as REVIEW_CONTENT,
 
         TRIP_VERIFIED,
 
@@ -49,7 +55,7 @@ with data_cleaned as (
         iff(AIRPORT_STAFF = 'NA', null, cast(AIRPORT_STAFF as integer)) as AIRPORT_STAFF,
 
         RECOMMENDED,
-        AIRPORT_NAME 
+        trim(regexp_replace(AIRPORT_NAME, '\\s+', ' ')) as AIRPORT_NAME
     FROM {{ source('raw_data', 'AIRPORT_REVIEW') }} 
 )
 

@@ -1,0 +1,16 @@
+{
+  "name": "AeroLens - Purple SkyView",
+  "dataColors": ["#55207A", "#7A3E9D", "#A66CC2", "#C5A3D6", "#E1D1EA", "#D4A63C", "#2F9A72", "#526C86"],
+  "background": "#F7F4F8",
+  "foreground": "#261936",
+  "tableAccent": "#6B2D91",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "title": [{ "color": { "solid": { "color": "#261936" } }, "fontFamily": "Segoe UI", "fontSize": 12 }],
+        "background": [{ "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#E7DDEB" } }, "radius": 8 }]
+      }
+    }
+  }
+}

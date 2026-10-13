@@ -1,128 +1,162 @@
-# Airport Reviews: dbt + Snowflake Project
+# Airport Reviews Analytics
 
-A data cleaning and modeling project built with **dbt** on **Snowflake**.
-It takes a raw CSV of airport reviews, cleans it, and turns it into a **star schema** that is ready for analysis.
+An end-to-end analytics project that transforms raw airport reviews in Snowflake with dbt and presents the results in a Power BI dashboard.
 
-## Tech Stack
+## Project at a glance
 
-- **Snowflake**: data warehouse
-- **dbt (dbt-snowflake)**: transformations, testing, and documentation
-- **Python virtual environment** (`.venv`) to run dbt
+- **Data warehouse:** Snowflake
+- **Transformations and tests:** dbt Core with `dbt-snowflake`
+- **Dashboard:** Power BI (`.pbix`)
+- **Data model:** staging layer and dimensional marts, including a review fact table and lookup dimensions
+- **Dashboard theme:** purple airport-inspired theme and custom logo
 
-## The Data
+## Dashboard
 
-- Source file: `all_airport_reviews.csv`
-- About **43,988 reviews** for **927 airports**, 17 columns
-- Loaded into Snowflake as `AIRPORT_DB.RAW.AIRPORT_REVIEW`
-- Main columns: review title and text, review date, visit date, airport name, traveller type, experience at the airport, 8 rating columns (queuing, cleanliness, seating, signs, food, shopping, wifi, staff), and whether the traveller recommends the airport
+Open [Airport Reviews Dashboard](reports/Airport-Reviews-Dashboard.pbix) in Power BI Desktop. The report has five pages:
 
-## Project Structure
+| Page | What it shows |
+|---|---|
+| **Overview** | KPI cards, top airports by review count, review trend over time, and recommendations by traveller type |
+| **Airports** | Airport-level review totals and comparisons between airports |
+| **Travelers & Reviews** | Review distribution by traveller type, recommendations, and individual review details |
+| **Service Ratings** | Airport service ratings, including queue times, cleanliness, seating, signs, food, shopping, Wi-Fi, and staff |
+| **Trip Verification** | Verified and unverified review counts by airport and traveller type |
 
-```
-airport_data_project/
-├── models/
-│   ├── sources.yaml                  # tells dbt where the raw table is
-│   ├── staging/
-│   │   └── stg_AIRPORT_REVIEW.sql    # cleaning happens here
-│   └── marts/
-│       ├── dim_airports.sql
-│       ├── dim_traveller_type.sql
-│       ├── dim_airport_experience.sql
-│       ├── dim_trip_verification.sql
-│       ├── fact_reviews.sql
-│       └── summery_review_airport.sql   # average ratings per airport
-├── dbt_project.yml
-└── README.md
-```
+Airport and date slicers let report users explore different subsets of the data. Card and chart totals change with the selected filters.
 
-## Data Flow
+The report theme and logo source files are in [`assets/`](assets/). The Power BI file contains the report layout and its configured data connection; credentials should be supplied through the user's own Snowflake/Power BI sign-in and must not be committed.
+
+## Data
+
+The source is a CSV of airport reviews loaded into Snowflake as `AIRPORT_DB.RAW.AIRPORT_REVIEW`. The CSV is not included in this repository. The raw data contains about **43,988 rows**; the staging model removes **121 duplicate rows**, leaving **43,867 cleaned reviews**. The current dbt airport dimension contains **927 distinct airport names**. Dashboard values can differ when slicers or filters are active.
+
+The source contains review title and text, review and visit dates, airport and traveller details, trip verification, recommendations, and eight service-rating fields:
+
+`QUEUING_TIMES`, `TERMINAL_CLEANLINESS`, `TERMINAL_SEATING`, `TERMINAL_SIGNS`, `FOOD_BEVERAGES`, `AIRPORT_SHOPPING`, `WIFI_CONNECTIVITY`, and `AIRPORT_STAFF`.
+
+### Data preparation
+
+The staging model (`models/staging/stg_AIRPORT_REVIEW.sql`) performs the following cleanup:
+
+- Removes quotation marks and extra whitespace from review titles and airport names.
+- Converts review dates such as `16th September 2023` into Snowflake `DATE` values.
+- Normalizes review text, removes leading symbols, and strips `Trip Verified |` / `Not Verified |` prefixes.
+- Converts text placeholders such as `N/A` and `NA` to `NULL`.
+- Converts the eight service ratings from text to integers.
+- Removes duplicate rows.
+
+Rating values of `0` are retained. The source scale is generally 1–5, but the meaning of zero is not confirmed; interpret averages with that limitation in mind. `DATE_VISIT` remains text because it contains month and year rather than a complete date.
+
+## Data model
+
+The marts are designed as a star schema for Power BI. `fact_reviews` contains one row per cleaned review and foreign keys to the descriptive dimensions.
 
 ```mermaid
 flowchart LR
-    raw[(RAW.AIRPORT_REVIEW)] --> stg[stg_AIRPORT_REVIEW]
-    stg --> dim_airports
-    stg --> dim_traveller_type
-    stg --> dim_airport_experience
-    stg --> dim_trip_verification
-    stg --> summary[summery_review_airport]
-    stg --> fact_reviews
-    dim_airports --> fact_reviews
-    dim_traveller_type --> fact_reviews
-    dim_airport_experience --> fact_reviews
-    dim_trip_verification --> fact_reviews
+    raw[(AIRPORT_DB.RAW.AIRPORT_REVIEW)] --> staging[stg_AIRPORT_REVIEW]
+    staging --> fact[fact_reviews]
+    staging --> airports[dim_airports]
+    staging --> traveller[dim_traveller_type]
+    staging --> experience[dim_airport_experience]
+    staging --> verification[dim_trip_verification]
+    staging --> summary[summery_review_airport]
+    airports --> fact
+    traveller --> fact
+    experience --> fact
+    verification --> fact
 ```
 
-## Data Cleaning Steps (staging layer)
+| Model | Grain / contents |
+|---|---|
+| `stg_AIRPORT_REVIEW` | Cleaned source reviews; materialized as a view |
+| `fact_reviews` | One row per review, with airport, traveller, experience, and verification keys; review text, dates, ratings, and recommendation |
+| `dim_airports` | One row per airport (927 in the current build) |
+| `dim_traveller_type` | Traveller categories, including `Unknown` |
+| `dim_airport_experience` | Airport experience categories, including `Unknown` |
+| `dim_trip_verification` | `Verified` and `Not Verified` categories |
+| `summery_review_airport` | Review count and average service ratings grouped by airport |
 
-All cleaning is done in `models/staging/stg_AIRPORT_REVIEW.sql`.
+The model called `summery_review_airport` retains the spelling used in the existing project. It currently aggregates from staging.
 
-| Column | Problem | What we did |
-|---|---|---|
-| `TITLE` | Wrapped in quotation marks (straight and curly) | Removed the quotes and extra spaces |
-| `DATE` | Text like `16th September 2023` | Removed `th/st/nd/rd` and converted to a real `DATE` |
-| `CONTENT` | Extra spaces, hidden new lines, special characters, leading symbols (❎ ❌ ✅), and a leading `Trip Verified\|` / `Not Verified\|` phrase | Cleaned all of them |
-| `EXPERIENCE_AT_AIRPORT`, `DATE_VISIT`, `TYPE_OF_TRAVELLER` | Missing values written as the text `N/A` | Converted `N/A` to a real `NULL` |
-| 8 rating columns | Stored as text, missing values written as `NA` | Converted to integers and `NA` to `NULL` |
-| `AIRPORT_NAME` | Repeated spaces (for example `Hamad  Doha`) | Collapsed to a single space |
-| All columns | 121 rows duplicated in every column | Removed with `DISTINCT` |
+## Repository layout
 
-Result: **43,988 raw rows → 43,867 clean rows**.
+```text
+airport_data_project/
+├── assets/
+│   ├── AeroLens-Purple-Theme.json
+│   └── Airport-Globe-Plane-Logo-White.png
+├── models/
+│   ├── staging/
+│   │   └── stg_AIRPORT_REVIEW.sql
+│   ├── marts/
+│   │   ├── dim_airport_experience.sql
+│   │   ├── dim_airports.sql
+│   │   ├── dim_traveller_type.sql
+│   │   ├── dim_trip_verification.sql
+│   │   ├── fact_reviews.sql
+│   │   └── summery_review_airport.sql
+│   ├── example/
+│   │   └── sources.yaml
+│   └── schema.yml
+├── reports/
+│   └── Airport-Reviews-Dashboard.pbix
+├── dbt_project.yml
+├── lineage.png
+└── README.md
+```
 
-## Data Model (marts layer)
+## Setup and run
 
-A star schema with one fact table and four small dimension tables.
+### 1. Prepare the source table
 
-| Model | Rows | Description |
-|---|---|---|
-| `fact_reviews` | 43,867 | One row per review: keys to the dimensions, dates, review text, ratings, recommendation |
-| `dim_airports` | 927 | One row per airport |
-| `dim_traveller_type` | 5 | Couple / Solo / Family / Business / Unknown |
-| `dim_airport_experience` | 5 | Arrival / Departure / both / Transit / Unknown |
-| `dim_trip_verification` | 2 | Verified / Not Verified |
-| `summery_review_airport` | | Review count and average rating per airport |
+Load the source CSV into Snowflake as `AIRPORT_DB.RAW.AIRPORT_REVIEW`, matching the column names referenced by the source definition in `models/example/sources.yaml`. The CSV is intentionally not stored in this repository.
 
-In the dimension tables, empty values are written as `Unknown`, so the joins in `fact_reviews` never lose rows.
+### 2. Configure dbt
 
-## How to Run
+Install dbt with the Snowflake adapter:
 
-1. Install dbt for Snowflake in a virtual environment:
+```bash
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install dbt-snowflake
+```
 
-   ```bash
-   pip install dbt-snowflake
-   ```
+On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
 
-2. Add your Snowflake connection to `~/.dbt/profiles.yml`.
-   This file contains credentials, so **never commit it to Git**.
+Add a profile named `airport_data_project` to `~/.dbt/profiles.yml` (on Windows, `%USERPROFILE%\.dbt\profiles.yml`). Configure the Snowflake account, user, role, warehouse, database, and target schema there. Keep this file and all credentials out of Git.
 
-3. Check the connection:
+### 3. Validate and build
 
-   ```bash
-   dbt debug
-   ```
+Run these commands from the `airport_data_project` directory:
 
-4. Build everything:
+```bash
+dbt debug
+dbt run
+dbt test
+```
 
-   ```bash
-   dbt run
-   ```
+To build the fact model and its upstream dependencies only:
 
-5. Build one model and everything it depends on:
+```bash
+dbt run --select +fact_reviews
+```
 
-   ```bash
-   dbt run --select +fact_reviews
-   ```
+Generate local dbt documentation and the model lineage graph with:
 
-6. Generate and open the documentation and the lineage graph:
+```bash
+dbt docs generate
+dbt docs serve
+```
 
-   ```bash
-   dbt docs generate
-   dbt docs serve
-   ```
+The staging and marts models are configured as views and tables respectively. Their final Snowflake schema names depend on the target schema configured in the dbt profile and dbt's schema naming convention.
 
-## Known Decisions and Next Steps
+## Data quality checks
 
-- **Rating value `0`:** the rating scale is 1 to 5, but some rows contain `0`. It is unclear whether `0` means "not rated" or "very bad", so it is currently kept as is. Averages should be read with this in mind until it is decided.
-- `DATE_VISIT` is kept as text (`September 2023`) because it only contains a month and a year.
-- Add dbt tests (`not_null`, `unique`, `accepted_values`, `relationships`) in a `.yml` file.
-- Move staging and marts models into their own schemas instead of `RAW`.
-- Point `summery_review_airport` to `fact_reviews` and `dim_airports`, and fix the spelling of its name.
+`models/schema.yml` defines dbt tests for required and unique dimension keys, unique review IDs, accepted values for recommendation, verification, and rating fields, and foreign-key relationships from the fact model to its dimensions. Run `dbt test` after building the models.
+
+## Security and repository notes
+
+- Do not commit Snowflake credentials, `profiles.yml`, or local environment files.
+- The source CSV is not included; users need access to the source data and Snowflake table to rebuild the models.
+- The PBIX file may include imported report data and Snowflake connection metadata. Review it for sensitive information before making the repository public.
+- Generated dbt artifacts and logs are excluded through `.gitignore`.

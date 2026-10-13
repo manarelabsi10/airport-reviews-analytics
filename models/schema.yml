@@ -1,0 +1,196 @@
+version: 2
+
+models:
+  - name: stg_AIRPORT_REVIEW
+    description: "Cleaned airport reviews from the raw source."
+    columns:
+      - name: REVIEW_DATE
+        data_tests:
+          - not_null
+      - name: AIRPORT_NAME
+        data_tests:
+          - not_null
+      - name: RECOMMENDED
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['yes', 'no']
+      - name: QUEUING_TIMES
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_CLEANLINESS
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_SEATING
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_SIGNS
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: FOOD_BEVERAGES
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: AIRPORT_SHOPPING
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: WIFI_CONNECTIVITY
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: AIRPORT_STAFF
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+
+  - name: dim_airports
+    columns:
+      - name: AIRPORT_ID
+        data_tests:
+          - unique
+          - not_null
+      - name: AIRPORT_NAME
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_traveller_type
+    columns:
+      - name: TRAVELLER_TYPE_ID
+        data_tests:
+          - unique
+          - not_null
+      - name: TYPE_OF_TRAVELLER
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_airport_experience
+    columns:
+      - name: EXPERIENCE_ID
+        data_tests:
+          - unique
+          - not_null
+      - name: EXPERIENCE_AT_AIRPORT
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_trip_verification
+    columns:
+      - name: VERIFICATION_ID
+        data_tests:
+          - unique
+          - not_null
+      - name: TRIP_VERIFIED
+        data_tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Verified', 'Not Verified']
+
+  - name: fact_reviews
+    columns:
+      - name: REVIEW_ID
+        data_tests:
+          - unique
+          - not_null
+      - name: AIRPORT_ID
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airports')
+                field: AIRPORT_ID
+      - name: TRAVELLER_TYPE_ID
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_traveller_type')
+                field: TRAVELLER_TYPE_ID
+      - name: EXPERIENCE_ID
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_airport_experience')
+                field: EXPERIENCE_ID
+      - name: VERIFICATION_ID
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_trip_verification')
+                field: VERIFICATION_ID
+      - name: RECOMMENDED
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['yes', 'no']
+      - name: QUEUING_TIMES
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_CLEANLINESS
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_SEATING
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: TERMINAL_SIGNS
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: FOOD_BEVERAGES
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: AIRPORT_SHOPPING
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: WIFI_CONNECTIVITY
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+      - name: AIRPORT_STAFF
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5]
+
+  - name: summery_review_airport
+    columns:
+      - name: AIRPORT_NAME
+        data_tests:
+          - unique
+          - not_null
+      - name: TOTAL_REVIEWS
+        data_tests:
+          - not_null
